@@ -20,8 +20,8 @@ export async function fetchRevenue() {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
 
-    console.log('Fetching revenue data...');
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // console.log('Fetching revenue data...');
+    // await new Promise((resolve) => setTimeout(resolve, 3000));
     
     const data = await sql<Revenue>`SELECT * FROM revenue`;
     
@@ -37,8 +37,8 @@ export async function fetchRevenue() {
 export async function fetchLatestInvoices() {
   noStore();
   try {
-    console.log('Fetching invoices data...');
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // console.log('Fetching invoices data...');
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
     const data = await sql<LatestInvoiceRaw>`
     SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
     FROM invoices
@@ -62,8 +62,8 @@ export async function fetchLatestInvoices() {
 export async function fetchCardData() {
   noStore();
   try {
-    console.log('Fetching cards data...');
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // console.log('Fetching cards data...');
+    // await new Promise((resolve) => setTimeout(resolve, 1000));
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
@@ -203,8 +203,12 @@ export async function fetchCustomers() {
   }
 }
 
-export async function fetchFilteredCustomers(query: string) {
+const CUSTOMERS_PER_PAGE = 6;
+export async function fetchFilteredCustomers(query: string, currentPage: number) {
   noStore();
+  const offset = (currentPage - 1) * CUSTOMERS_PER_PAGE;
+  // console.log('Fetching customers data...');
+  //   await new Promise((resolve) => setTimeout(resolve, 1000));
   try {
     const data = await sql<CustomersTableType>`
 		SELECT
@@ -222,6 +226,7 @@ export async function fetchFilteredCustomers(query: string) {
         customers.email ILIKE ${`%${query}%`}
 		GROUP BY customers.id, customers.name, customers.email, customers.image_url
 		ORDER BY customers.name ASC
+    LIMIT ${CUSTOMERS_PER_PAGE} OFFSET ${offset}
 	  `;
 
     const customers = data.rows.map((customer) => ({
@@ -234,6 +239,24 @@ export async function fetchFilteredCustomers(query: string) {
   } catch (err) {
     console.error('Database Error:', err);
     throw new Error('Failed to fetch customer table.');
+  }
+}
+
+export async function fetchCustomersPages(query: string) {
+  noStore();
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM customers
+    WHERE
+      name ILIKE ${`%${query}%`} OR
+      email ILIKE ${`%${query}%`}
+  `;
+
+    const totalPages = Math.ceil(Number(count.rows[0].count) / CUSTOMERS_PER_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of customers.');
   }
 }
 
